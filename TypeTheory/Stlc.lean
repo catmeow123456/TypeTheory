@@ -15,8 +15,10 @@ inductive tm : Type :=
 notation "≪" e "≫" => e
 infixr:50  "→" => fun S T => ty.Ty_Arrow S T
 infixl:1   "↠" => fun S T => tm.tm_app S T
-notation "λ" x ":" T "," t => tm.tm_abs x T t
+notation:90 "λ" x:99 ":" t:99 "," y:99 => tm.tm_abs x t y
 notation "If" x "Then" y "Else" z => tm.tm_if x y z
+notation "TRUE" => tm.tm_true
+notation "FALSE" => tm.tm_false
 
 #check ≪ tm.tm_var "x" ≫ ↠ ≪ tm.tm_abs "x" ty.Ty_Bool ≪tm.tm_var "x"≫ ≫
 #check ≪ tm.tm_var "x" ≫
@@ -42,8 +44,8 @@ def subst (x : String) (s : tm) (t : tm) : tm :=
       ≪subst x s t2≫
     Else
       ≪subst x s t3≫
-  | tm.tm_true => tm.tm_true
-  | tm.tm_false => tm.tm_false
+  | tm.tm_true => TRUE
+  | tm.tm_false => FALSE
 
 notation t "[" x ":=" s "]" => subst x s t
 
