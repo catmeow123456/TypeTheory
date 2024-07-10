@@ -227,9 +227,7 @@ example : <{ idBBBB ↠ idBB ↠ idB }> ->* idB := by
   sorry
 
 
-def context := Finmap (fun _:String => ty)
-instance : EmptyCollection context:= ⟨(∅ : Finmap (fun _:String => ty))⟩
-#check (∅ : context)
+notation "context" => Finmap (fun _:String => ty)
 
 open Finmap
 inductive has_type : context → tm → ty → Prop :=
