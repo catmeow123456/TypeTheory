@@ -4,6 +4,7 @@ set_option diagnostics.threshold 100
 
 namespace STLC
 
+section term
 inductive ty : Type :=
   | Ty_Bool : ty
   | Ty_Arrow : ty → ty → ty
@@ -45,12 +46,6 @@ def z : String := "z"
 #check λ x: BOOL, x ↠ y ↠ z
 #check λ x: (BOOL → BOOL → BOOL), x ↠ x
 #check TRUE
-
-inductive value : tm → Prop
-  | v_abs (x : String) (T : ty) (t : tm) :
-      value <{ λ x:T,t }>
-  | v_true : value <{ TRUE }>
-  | v_false : value <{ FALSE }>
 
 def subst (x : String) (s : tm) (t : tm) : tm :=
   match t with
@@ -155,6 +150,14 @@ theorem substi_correct: ∀ s x t t', substi s x t t' ↔ t [x := s] = t' := by
       · apply ih1; rfl
       · apply ih2; rfl
       · apply ih3; rfl
+end term
+
+section step
+inductive value : tm → Prop
+  | v_abs (x : String) (T : ty) (t : tm) :
+      value <{ λ x:T,t }>
+  | v_true : value <{ TRUE }>
+  | v_false : value <{ FALSE }>
 
 inductive step : tm → tm → Prop :=
   | ST_AppAbs : ∀ x T2 t1 v2,
@@ -170,13 +173,15 @@ inductive step : tm → tm → Prop :=
   | ST_If : ∀ t1 t1' t2 t3,
     step t1 t1' → step <{If t1 Then t2 Else t3}> <{If t1' Then t2 Else t3}>
 
-notation x " -> " y => step x y
+notation:80 x:90 " ->- " y:90 => step x y
+#check λ x: BOOL, (x ↠ x) ->- λ x: BOOL, (x ↠ x)
+
 inductive multi {X : Type} (R : X → X → Prop) : X → X → Prop
   | multi_refl : ∀ x, multi R x x
   | multi_step : ∀ x y z, R x y → multi R y z → multi R x z
 open multi
 notation "multistep" => multi step
-notation x " ->* " y => multistep x y
+notation:99 x:99 " ->* " y:99 => multistep x y
 
 def idBB := <{λ x: (BOOL → BOOL), x}>
 def idB := <{λ x: BOOL, x}>
@@ -196,7 +201,7 @@ example : <{idBB ↠ idB}> ->* idB := by
 
 example : <{ idBB ↠ <{idBB ↠ idB}>}> ->* idB := by
   apply multi_step
-  --  <{ idBB ↠ <{idBB ↠ idB}>}>  ->  <{idBB ↠ idB}>
+  --  <{ idBB ↠ <{idBB ↠ idB}>}>  ->-  <{idBB ↠ idB}>
   · apply step.ST_App2
     · apply value.v_abs
     · apply step.ST_AppAbs
@@ -226,33 +231,38 @@ example : <{ idBB ↠ (notB ↠ TRUE) }> ->* <{FALSE}> := by
 example : <{ idBBBB ↠ idBB ↠ idB }> ->* idB := by
   sorry
 
+def normal_form {X : Type*} (R : X → X → Prop) (t : X) : Prop :=
+  ¬ ∃ t', R t t'
 
+end step
+
+section type
 notation "context" => Finmap (fun _:String => ty)
 
 open Finmap
 inductive has_type : context → tm → ty → Prop :=
-  | T_Var : ∀ Gamma x T1,
-    (Finmap.lookup x Gamma) = some T1 →
-      has_type Gamma <{x}> T1
-  | T_Abs : ∀ Gamma x T1 T2 t1,
-    has_type (Gamma.insert x T1) t1 T2 →
-      has_type Gamma <{λ x: T1, t1}> (T1 → T2)
-  | T_app : ∀ Gamma t1 t2 T1 T2,
-    has_type Gamma t1 (T1 → T2) →
-    has_type Gamma t2 T1 →
-    has_type Gamma <{t1 ↠ t2}> T2
-  | T_True : ∀ Gamma,
-    has_type Gamma <{TRUE}> BOOL
-  | T_False : ∀ Gamma,
-    has_type Gamma <{FALSE}> BOOL
-  | T_If : ∀ Gamma t1 t2 t3 T,
-    has_type Gamma t1 BOOL →
-    has_type Gamma t2 T →
-    has_type Gamma t3 T →
-    has_type Gamma <{If t1 Then t2 Else t3}> T
+  | T_Var : ∀ Γ x T1,
+    (Finmap.lookup x Γ) = some T1 →
+      has_type Γ <{x}> T1
+  | T_Abs : ∀ Γ x T1 T2 t1,
+    has_type (Γ.insert x T1) t1 T2 →
+      has_type Γ <{λ x: T1, t1}> (T1 → T2)
+  | T_app : ∀ Γ t1 t2 T1 T2,
+    has_type Γ t1 (T1 → T2) →
+    has_type Γ t2 T1 →
+    has_type Γ <{t1 ↠ t2}> T2
+  | T_True : ∀ Γ,
+    has_type Γ <{TRUE}> BOOL
+  | T_False : ∀ Γ,
+    has_type Γ <{FALSE}> BOOL
+  | T_If : ∀ Γ t1 t2 t3 T,
+    has_type Γ t1 BOOL →
+    has_type Γ t2 T →
+    has_type Γ t3 T →
+    has_type Γ <{If t1 Then t2 Else t3}> T
 open has_type
 
-notation Gamma " ⊢ " t " : " T => has_type Gamma t T
+notation Γ " ⊢ " t " : " T => has_type Γ t T
 set_option diagnostics true
 #check ∅ ⊢ x : BOOL
 #check  ∅ ⊢ (λ x: BOOL, x) : BOOL → BOOL
@@ -282,4 +292,34 @@ example : ¬ ∃ T, ∅ ⊢ λ x : BOOL, <{λ y : BOOL, (x ↠ y)}> : T := by
 example : ¬ (∃ S T, ∅ ⊢ λ x : S, <{y ↠ y}> : T) := by
   sorry
 
+end type
+
 end STLC
+
+
+namespace partialmap
+open STLC Finmap
+
+class includedin (a b : context) : Prop :=
+  property : ∀ {x T}, a.lookup x = some T → b.lookup x = some T
+
+@[simp]
+def includedin_refl (a : context) : includedin a a where
+  property := fun h => h
+
+@[simp]
+def includedin_empty (a : context) : includedin ∅ a where
+  property := fun h => by simp only [lookup_empty] at h
+
+#check lookup_insert
+def includedin_insert {a b : context} (h1: includedin a b) (x : String) (T : ty):
+    includedin (a.insert x T) (b.insert x T) where
+  property := fun {x' T'} hx' => by
+    by_cases h: x' = x
+    · rw [h, lookup_insert] at hx'
+      rw [h, lookup_insert]
+      exact hx'
+    · rw [lookup_insert_of_ne _ h] at hx'
+      rw [lookup_insert_of_ne _ h]
+      exact h1.property hx'
+end partialmap
