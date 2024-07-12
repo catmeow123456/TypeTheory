@@ -288,7 +288,25 @@ example : ∃ T, ∅ ⊢ λ x : (BOOL → BOOL), <{λ y : (BOOL → BOOL), <{λ 
   sorry
 
 example : ¬ ∃ T, ∅ ⊢ λ x : BOOL, <{λ y : BOOL, (x ↠ y)}> : T := by
-  sorry
+  intro h
+  rcases h with ⟨T, h⟩
+  cases h with
+  | T_Abs _ _ _ T2 _ h2 =>
+    cases h2 with
+    | T_Abs _ _ _ T2' _ h2' =>
+      cases h2' with
+      | T_app _ _ _ T1' _ h2'' h3'' =>
+        cases h2'' with
+        | T_Var _ _ _ h2''' =>
+          by_cases hxy: x = y
+          · rw [hxy] at h2'''
+            rw [lookup_insert] at h2'''
+            injection h2'''
+            contradiction
+          rw [lookup_insert_of_ne _ hxy] at h2'''
+          rw [lookup_insert] at h2'''
+          injection h2'''
+          contradiction
 
 example : ¬ (∃ S T, ∅ ⊢ λ x : S, <{y ↠ y}> : T) := by
   sorry
