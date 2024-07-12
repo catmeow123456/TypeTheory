@@ -1,7 +1,7 @@
 -- https://softwarefoundations.cis.upenn.edu/plf-current/Stlc.html
 import Mathlib.Data.Finmap
 
-set_option diagnostics.threshold 100
+set_option diagnostics.threshold 500
 
 namespace STLC
 
@@ -215,7 +215,7 @@ example : <{ idBB ↠ <{idBB ↠ idB}>}> ->* idB := by
 
 example : <{ idBB ↠ notB ↠ TRUE}> ->* FALSE := by
   apply multi_step
-  · apply step.ST_App1;
+  · apply step.ST_App1
     apply step.ST_AppAbs
     apply value.v_abs
   apply multi_step
@@ -227,10 +227,29 @@ example : <{ idBB ↠ notB ↠ TRUE}> ->* FALSE := by
   apply multi_refl
 
 example : <{ idBB ↠ (notB ↠ TRUE) }> ->* <{FALSE}> := by
-  sorry
+  apply multi_step
+  apply step.ST_App2
+  apply value.v_abs
+  apply step.ST_AppAbs
+  apply value.v_true
+  apply multi_step
+  apply step.ST_App2
+  apply value.v_abs
+  exact step.ST_IfTrue FALSE TRUE
+  refine multi_step (idBB ↠ FALSE) FALSE FALSE ?_ ?_
+  apply step.ST_AppAbs
+  exact value.v_false
+  apply multi_refl
 
 example : <{ idBBBB ↠ idBB ↠ idB }> ->* idB := by
-  sorry
+  apply multi_step
+  apply step.ST_App1
+  apply step.ST_AppAbs
+  apply value.v_abs
+  apply multi_step
+  apply step.ST_AppAbs
+  apply value.v_abs
+  apply multi_refl
 
 def normal_form {X : Type*} (R : X → X → Prop) (t : X) : Prop :=
   ¬ ∃ t', R t t'
@@ -285,11 +304,24 @@ example : ∅ ⊢ λ x: BOOL, <{λ y : (BOOL → BOOL), (y ↠ (y ↠ x))}> : BO
   rfl
 
 example : ∃ T, ∅ ⊢ λ x : (BOOL → BOOL), <{λ y : (BOOL → BOOL), <{λ z : BOOL, (y ↠ (x ↠ z))}>}> : T := by
-  sorry
+  use (BOOL → BOOL) → (BOOL → BOOL) → BOOL → BOOL
+  apply T_Abs
+  apply T_Abs
+  apply T_Abs
+  apply T_app
+  exact
+    T_Var (Finmap.insert z BOOL (Finmap.insert y (BOOL → BOOL) (Finmap.insert x (BOOL → BOOL) ∅))) y
+      (BOOL → BOOL) rfl
+  apply T_app
+  exact
+    T_Var (Finmap.insert z BOOL (Finmap.insert y (BOOL → BOOL) (Finmap.insert x (BOOL → BOOL) ∅))) x
+      (BOOL → BOOL) rfl
+  exact
+    T_Var (Finmap.insert z BOOL (Finmap.insert y (BOOL → BOOL) (Finmap.insert x (BOOL → BOOL) ∅))) z
+      BOOL rfl
 
 example : ¬ ∃ T, ∅ ⊢ λ x : BOOL, <{λ y : BOOL, (x ↠ y)}> : T := by
-  intro h
-  rcases h with ⟨T, h⟩
+  rintro ⟨T, h⟩
   cases h with
   | T_Abs _ _ _ T2 _ h2 =>
     cases h2 with
@@ -299,17 +331,27 @@ example : ¬ ∃ T, ∅ ⊢ λ x : BOOL, <{λ y : BOOL, (x ↠ y)}> : T := by
         cases h2'' with
         | T_Var _ _ _ h2''' =>
           by_cases hxy: x = y
-          · rw [hxy] at h2'''
-            rw [lookup_insert] at h2'''
+          · rw [hxy, lookup_insert] at h2'''
             injection h2'''
             contradiction
-          rw [lookup_insert_of_ne _ hxy] at h2'''
-          rw [lookup_insert] at h2'''
+          rw [lookup_insert_of_ne _ hxy, lookup_insert] at h2'''
           injection h2'''
           contradiction
 
 example : ¬ (∃ S T, ∅ ⊢ λ x : S, <{y ↠ y}> : T) := by
-  sorry
+  rintro ⟨_, _, p⟩
+  cases p with
+  | T_Abs _ _ _ _ _ h₁ =>
+  cases h₁ with
+  | T_app _ _ _ _ _ h₂ _ =>
+  cases h₂ with
+  | T_Var _ _ _ h₃ =>
+  by_cases hxy: x = y
+  rw [hxy, lookup_insert] at h₃
+  injection h₃
+  contradiction
+  rw [lookup_insert_of_ne _ (fun a => hxy (id (Eq.symm a)))] at h₃
+  simp only [lookup_empty] at h₃
 
 end type
 
